@@ -17,13 +17,13 @@ uint32_t retransmissions = 0;
  */
 void sendFrameSPI(Frame &txFrame)
 {
-  // 1. Zrób kopię do wysłania (żeby nie psuć oryginału w pamięci logiki)
+  // 1. Copy frame to inject errors, so as not to corrupt the original in memory
   Frame frameToSend = txFrame;
 
-  // 2. Symulacja błędów (przekłamanie w "kanale" w stronę odbiornika)
+  // 2. Simulate errors (corruption in the "channel" towards the receiver)
   injectErrors(frameToSend);
 
-  // 3. Transmisja
+  // 3. Transmission via SPI
   digitalWrite(PIN_SS, LOW);
 
   uint8_t *ptr = (uint8_t *)&frameToSend;
@@ -91,6 +91,8 @@ void loop()
   memset(&txFrame, 0, sizeof(Frame)); // empty frame
   txFrame.sof = SOF_BYTE;
   txFrame.eof = EOF_BYTE;
+  txFrame.srcAddr = TX_ADDR;
+  txFrame.destAddr = RX_ADDR;
   txFrame.seqNum = currentSeqNum;
 
   if (fileOffset >= PAYLOAD_DATA_LEN)
@@ -147,24 +149,8 @@ void loop()
             currentSeqNum++;
           }
         }
-        else
-        {
-          // Serial.println(F("BŁĄD: Zły numer sekwencji w ACK"));
-        }
-      }
-      else if (ackFrame.flags & FLAG_NACK)
-      {
-        // Serial.println(F("INFO: Otrzymano NACK -> Retransmisja"));
       }
     }
-    else
-    {
-      // Serial.println(F("BŁĄD: CRC odpowiedzi niepoprawne -> Traktuj jako utratę -> Retransmisja"));
-    }
-  }
-  else
-  {
-    // Serial.println(F("BŁĄD: Brak poprawnej struktury ramki od Slave (Timeout/Noise)"));
   }
 
   if (!success && !transmissionFinished)

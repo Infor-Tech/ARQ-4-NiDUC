@@ -18,6 +18,9 @@
 #define SOF_BYTE 0xAA
 #define EOF_BYTE 0x55
 
+#define TX_ADDR 0x01
+#define RX_ADDR 0x02
+
 #define FLAG_DATA 0x01
 #define FLAG_ACK 0x02
 #define FLAG_NACK 0x04
@@ -35,10 +38,12 @@ struct __attribute__((packed)) Frame
 {
   uint8_t sof; // Start of Frame
   uint8_t len; // payload length
+  uint8_t srcAddr;
+  uint8_t destAddr;
   uint8_t flags;
-  uint8_t seqNum;
+  uint8_t seqNum; // Depending on a flag this field serves different purpose
   uint8_t payload[MAX_PAYLOAD_LEN];
-  crc_t crc;   // Suma kontrolna
+  crc_t crc;
   uint8_t eof; // End of Frame
 };
 
@@ -50,16 +55,24 @@ struct __attribute__((packed)) Frame
  */
 crc_t calculateCRC(Frame &frame, FastCRC16 &crcEngine)
 {
-  // Obliczamy CRC od pola len do końca payloadu (pomijamy SOF i samo CRC)
-  size_t dataSize = sizeof(uint8_t) * 2 + sizeof(uint8_t) + frame.len;
-  // len(1) + flags(1) + seq(2) + payload(len)
+  // Checksum is calculated from len to the end of payload (based on length).
+  size_t dataSize = sizeof(frame.len) + sizeof(frame.srcAddr) + sizeof(frame.destAddr) + sizeof(frame.flags) + sizeof(frame.seqNum) + frame.len;
 
   uint8_t *startPtr = (uint8_t *)&frame.len;
 
+#if defined(USE_CRC_32)
+  return crcEngine.crc32(startPtr, dataSize);
+#elif defined(USE_CRC_16)
   return crcEngine.ccitt(startPtr, dataSize);
+#elif defined(USE_CRC_8)
+  return crcEngine.crc8(startPtr, dataSize);
+#endif
 }
 
-// Funkcja symulująca błędy (BSC Model)
+/**
+ * @brief Inject random bit errors into the frame (BSC Model)
+ * @param frame Frame to inject errors into
+ */
 void injectErrors(Frame &frame)
 {
   uint8_t *rawBytes = (uint8_t *)&frame;
@@ -70,7 +83,7 @@ void injectErrors(Frame &frame)
   {
     for (int bit = 0; bit < 8; bit++)
     {
-      if ((random(0, 10000) / 10000.0) < BER_PROBABILITY)
+      if ((random(0, 1000) / 1000.0) < BER_PROBABILITY)
       {
         bitWrite(rawBytes[i], bit, !bitRead(rawBytes[i], bit));
         corrupted = true;
@@ -79,7 +92,11 @@ void injectErrors(Frame &frame)
   }
 }
 
-// Funkcja logowania zgodna z wymaganiami
+/**
+ * @brief Print frame log to Serial
+ * @param dir Direction string
+ * @param f Frame to log
+ */
 void printLog(const char *dir, Frame &f)
 {
   Serial.print(dir);
@@ -89,7 +106,6 @@ void printLog(const char *dir, Frame &f)
   Serial.print(f.seqNum);
   Serial.print("; ");
 
-  // Wypisz tylko faktyczny payload (bez śmieci z bufora)
   for (int i = 0; i < f.len; i++)
   {
     char c = (char)f.payload[i];
