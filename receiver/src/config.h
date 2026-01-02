@@ -5,21 +5,21 @@
 #include <FastCRC.h>
 #include <SPI.h>
 
-#define USE_CRC_16
+#define USE_CRC_8
 
 // SPI pins
 #define PIN_SS 10
 
 // Simulation parameters
-#define BER_PROBABILITY 0.0001f
+#define BER_PROBABILITY 0.0002f
 #define REQ_DELAY 100
 
 #define MAX_PAYLOAD_LEN 64
 #define SOF_BYTE 0xAA
 #define EOF_BYTE 0x55
 
-#define TX_ADDR 0x01
-#define RX_ADDR 0x02
+#define TX_ADDR 0x02
+#define RX_ADDR 0x01
 
 #define FLAG_DATA 0x01
 #define FLAG_ACK 0x02
@@ -28,10 +28,13 @@
 
 #if defined(USE_CRC_32)
 typedef uint32_t crc_t;
+typedef FastCRC32 crcEngine_t;
 #elif defined(USE_CRC_16)
 typedef uint16_t crc_t;
+typedef FastCRC16 crcEngine_t;
 #elif defined(USE_CRC_8)
 typedef uint8_t crc_t;
+typedef FastCRC8 crcEngine_t;
 #endif
 
 struct __attribute__((packed)) Frame
@@ -53,7 +56,7 @@ struct __attribute__((packed)) Frame
  * @param crcEngine crc object
  * @return crc_t checksum value
  */
-crc_t calculateCRC(Frame &frame, FastCRC16 &crcEngine)
+crc_t calculateCRC(Frame &frame, crcEngine_t &crcEngine)
 {
   // Checksum is calculated from len to the end of payload (based on length).
   size_t dataSize = sizeof(frame.len) + sizeof(frame.srcAddr) + sizeof(frame.destAddr) + sizeof(frame.flags) + sizeof(frame.seqNum) + frame.len;
@@ -65,7 +68,7 @@ crc_t calculateCRC(Frame &frame, FastCRC16 &crcEngine)
 #elif defined(USE_CRC_16)
   return crcEngine.ccitt(startPtr, dataSize);
 #elif defined(USE_CRC_8)
-  return crcEngine.crc8(startPtr, dataSize);
+  return crcEngine.smbus(startPtr, dataSize);
 #endif
 }
 
@@ -77,16 +80,14 @@ void injectErrors(Frame &frame)
 {
   uint8_t *rawBytes = (uint8_t *)&frame;
   size_t frameSize = sizeof(Frame);
-  bool corrupted = false;
 
   for (size_t i = 0; i < frameSize; i++)
   {
     for (int bit = 0; bit < 8; bit++)
     {
-      if ((random(0, 1000) / 1000.0) < BER_PROBABILITY)
+      if ((random(0, 100000) / 100000.0) < BER_PROBABILITY)
       {
         bitWrite(rawBytes[i], bit, !bitRead(rawBytes[i], bit));
-        corrupted = true;
       }
     }
   }

@@ -1,7 +1,15 @@
 #include "config.h"
 #include "payload.h"
 
+#if defined(USE_CRC_8)
+FastCRC8 CRC;
+#elif defined(USE_CRC_16)
 FastCRC16 CRC;
+#elif defined(USE_CRC_32)
+FastCRC32 CRC;
+#else
+#error "No CRC type defined"
+#endif
 
 uint32_t fileOffset = 0;
 uint8_t currentSeqNum = 1;

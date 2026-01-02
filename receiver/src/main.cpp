@@ -1,6 +1,14 @@
 #include "config.h"
 
+#if defined(USE_CRC_8)
+FastCRC8 CRC;
+#elif defined(USE_CRC_16)
 FastCRC16 CRC;
+#elif defined(USE_CRC_32)
+FastCRC32 CRC;
+#else
+#error "No CRC type defined"
+#endif
 
 volatile uint8_t rxBuffer[sizeof(Frame)];
 volatile uint8_t rxIndex = 0;
