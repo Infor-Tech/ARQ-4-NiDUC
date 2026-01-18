@@ -85,7 +85,7 @@ void injectErrors(Frame &frame)
   {
     for (int bit = 0; bit < 8; bit++)
     {
-      if ((random(0, 100000) / 100000.0) < BER_PROBABILITY)
+      if ((random(0, 10000) / 10000.0) < BER_PROBABILITY)
       {
         bitWrite(rawBytes[i], bit, !bitRead(rawBytes[i], bit));
       }

@@ -17,6 +17,8 @@
 #define MAX_PAYLOAD_LEN 64
 #define SOF_BYTE 0xAA
 #define EOF_BYTE 0x55
+#define ESC_BYTE 0x7D
+#define XOR_FLAG 0x20
 
 #define TX_ADDR 0x01
 #define RX_ADDR 0x02
@@ -85,7 +87,7 @@ void injectErrors(Frame &frame)
   {
     for (int bit = 0; bit < 8; bit++)
     {
-      if ((random(0, 100000) / 100000.0) < BER_PROBABILITY)
+      if ((random(0, 10000) / 10000.0) < BER_PROBABILITY)
       {
         bitWrite(rawBytes[i], bit, !bitRead(rawBytes[i], bit));
       }

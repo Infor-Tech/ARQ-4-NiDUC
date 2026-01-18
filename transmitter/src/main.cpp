@@ -111,10 +111,35 @@ void loop()
   else
   {
     txFrame.flags = FLAG_DATA;
-    size_t bytesToSend = min((size_t)MAX_PAYLOAD_LEN, (size_t)(PAYLOAD_DATA_LEN - fileOffset));
-    txFrame.len = (uint8_t)bytesToSend;
-    // Get payload from PROGMEM
-    memcpy_P(txFrame.payload, PAYLOAD_DATA + fileOffset, bytesToSend);
+
+    uint8_t payloadIndex = 0;
+    size_t bytesProcessed = 0;
+
+    while ((fileOffset + bytesProcessed) < PAYLOAD_DATA_LEN)
+    {
+      uint8_t rawByte = pgm_read_byte(PAYLOAD_DATA + fileOffset + bytesProcessed);
+
+      bool needsEscape = (rawByte == SOF_BYTE || rawByte == EOF_BYTE || rawByte == ESC_BYTE);
+
+      uint8_t spaceNeeded = needsEscape ? 2 : 1;
+
+      if ((payloadIndex + spaceNeeded) > MAX_PAYLOAD_LEN)
+        break;
+
+      if (needsEscape)
+      {
+        txFrame.payload[payloadIndex++] = ESC_BYTE;
+        txFrame.payload[payloadIndex++] = rawByte ^ XOR_FLAG;
+      }
+      else
+      {
+        txFrame.payload[payloadIndex++] = rawByte;
+      }
+      bytesProcessed++;
+    }
+
+    txFrame.len = payloadIndex;
+    fileOffset += bytesProcessed;
   }
 
   txFrame.crc = calculateCRC(txFrame, CRC);
