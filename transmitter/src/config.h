@@ -7,11 +7,14 @@
 
 #define USE_CRC_8
 
+#define REMOVE_ESCAPING
+#define HIGHLIGHT_ESCAPED_CHARS
+
 // SPI pins
 #define PIN_SS 10
 
 // Simulation parameters
-#define BER_PROBABILITY 0.0002f
+#define BER_PROBABILITY 0
 #define REQ_DELAY 100
 
 #define MAX_PAYLOAD_LEN 64
@@ -112,6 +115,21 @@ void printLog(const char *dir, Frame &f)
   for (int i = 0; i < f.len; i++)
   {
     char c = (char)f.payload[i];
+#ifdef REMOVE_ESCAPING
+    if (c == ESC_BYTE)
+    {
+      i++;
+      char escapedChar = (char)(f.payload[i] ^ XOR_FLAG);
+#ifdef HIGHLIGHT_ESCAPED_CHARS
+      Serial.print("[");
+      Serial.print((uint8_t)escapedChar, HEX);
+      Serial.print("]");
+#else
+      Serial.print((uint8_t)escapedChar, HEX);
+#endif
+      continue;
+    }
+#endif
     if (c >= 32 && c <= 126)
       Serial.print(c);
     else

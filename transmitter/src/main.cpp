@@ -1,5 +1,5 @@
 #include "config.h"
-#include "payload.h"
+#include "test.h"
 
 #if defined(USE_CRC_8)
 FastCRC8 CRC;
@@ -95,6 +95,8 @@ void loop()
     return;
 
   // 1. Prepate frame to send
+  size_t pendingRawBytes = 0;
+
   Frame txFrame;
   memset(&txFrame, 0, sizeof(Frame)); // empty frame
   txFrame.sof = SOF_BYTE;
@@ -139,7 +141,7 @@ void loop()
     }
 
     txFrame.len = payloadIndex;
-    fileOffset += bytesProcessed;
+    pendingRawBytes = bytesProcessed;
   }
 
   txFrame.crc = calculateCRC(txFrame, CRC);
@@ -178,7 +180,7 @@ void loop()
           }
           else
           {
-            fileOffset += txFrame.len;
+            fileOffset += pendingRawBytes;
             currentSeqNum++;
           }
         }
